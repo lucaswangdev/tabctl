@@ -173,6 +173,82 @@ npm run dev     # Vite dev server (for testing)
 
 ---
 
+## Data Management
+
+数据库位置：`~/.tabctl/tabctl.db`（可通过 `TABCTL_DB` 环境变量覆盖）
+
+### 数据库表结构
+
+| 表名 | 用途 | 说明 |
+|------|------|------|
+| `pods` | 标签页 | 存储所有保存的标签页（name、url、namespace、labels 等） |
+| `namespaces` | 命名空间 | 标签页分组（如 work、personal、research） |
+| `deployments` | 部署配置 | 按 selector 规则动态匹配的 pod 集合 |
+
+### 表关系
+
+```
+namespaces (1) ----< (N) pods
+namespaces (1) ----< (N) deployments
+
+deployments 与 pods：无直接外键关联，通过 selector 标签匹配
+```
+
+**关联说明**：
+
+| 关系 | 说明 |
+|------|------|
+| `namespaces → pods` | 一对多：`pods.namespace` 外键 → `namespaces.id` |
+| `namespaces → deployments` | 一对多：`deployments.namespace` 外键 → `namespaces.id` |
+| `deployments → pods` | 无直接外键，通过 `labels` JSON 字段匹配 |
+
+例如：一个 `work` namespace 下有多个 pods，也可以有多个 deployments。deployment 通过 `selector`（JSON 标签选择器）动态查找匹配的 pods，而不是直接存储 pod IDs。
+
+### 查看数据（命令行）
+
+```bash
+# 查看所有表
+sqlite3 ~/.tabctl/tabctl.db ".tables"
+
+# 查看表结构
+sqlite3 ~/.tabctl/tabctl.db ".schema pods"
+sqlite3 ~/.tabctl/tabctl.db ".schema namespaces"
+sqlite3 ~/.tabctl/tabctl.db ".schema deployments"
+
+# 查看所有 pods
+sqlite3 ~/.tabctl/tabctl.db "SELECT * FROM pods;"
+
+# 查看所有 namespaces
+sqlite3 ~/.tabctl/tabctl.db "SELECT * FROM namespaces;"
+
+# 按 namespace 过滤查询
+sqlite3 ~/.tabctl/tabctl.db "SELECT * FROM pods WHERE namespace='work';"
+
+# 统计记录数
+sqlite3 ~/.tabctl/tabctl.db "SELECT COUNT(*) FROM pods;"
+
+# 格式化输出（列对齐）
+sqlite3 -column -header ~/.tabctl/tabctl.db "SELECT id, name, url, namespace FROM pods;"
+```
+
+### 常用 SQL 示例
+
+```bash
+# 搜索包含关键字的 pod
+sqlite3 ~/.tabctl/tabctl.db "SELECT * FROM pods WHERE name LIKE '%github%';"
+
+# 删除指定 pod
+sqlite3 ~/.tabctl/tabctl.db "DELETE FROM pods WHERE id='pod-xxx';"
+
+# 导出为 JSON（通过 API）
+curl http://localhost:7420/api/export > tabctl-backup.json
+
+# 导入数据（通过 API）
+curl -X POST http://localhost:7420/api/import -d @tabctl-backup.json -H "Content-Type: application/json"
+```
+
+---
+
 ## Auto-start server on Mac login (optional)
 
 ### Run in background (手动后台运行)
