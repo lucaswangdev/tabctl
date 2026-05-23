@@ -8,7 +8,7 @@
 Chrome Extension (Manifest V3, React + TypeScript)
         │  HTTP REST
         ▼
-tabctl-server (localhost:7420, Express + TypeScript)
+tabctl-server (localhost:7420, Rust + Axum)
         │  SQLite
         ▼
 tabctl.db   ← single source of truth
@@ -22,8 +22,19 @@ tabctl.db   ← single source of truth
 ./start.sh      # one-click: install + build server & extension + start server
 ```
 
+Or manually:
+
+```bash
+# Rust server (recommended)
+cargo build --release -p tabctl-server
+./server-rs/target/release/tabctl-server
+
+# Or from server-rs/ directory:
+cd server-rs && cargo run --release
+```
+
 Server runs at `http://localhost:7420`
-Data is stored at `./server/tabctl.db`
+Data is stored at `~/.local/share/tabctl.db`
 
 ### 2. Load the Chrome Extension
 
@@ -63,13 +74,13 @@ Data is stored at `./server/tabctl.db`
 | GET | `/health` | Server health check |
 | GET | `/api/pods` | List pods (filter: `?namespace=work&label=team=infra`) |
 | POST | `/api/pods` | Create pod |
-| PUT | `/api/pods/:id` | Update pod |
-| DELETE | `/api/pods/:id` | Delete pod |
+| PUT | `/api/pods/{id}` | Update pod |
+| DELETE | `/api/pods/{id}` | Delete pod |
 | POST | `/api/pods/batch` | Batch create pods |
 | GET | `/api/deployments` | List deployments |
 | POST | `/api/deployments` | Create deployment |
-| DELETE | `/api/deployments/:id` | Delete deployment |
-| GET | `/api/deployments/:id/pods` | Get pods matching deployment |
+| DELETE | `/api/deployments/{id}` | Delete deployment |
+| GET | `/api/deployments/{id}/pods` | Get pods matching deployment |
 | GET | `/api/namespaces` | List custom namespaces |
 | POST | `/api/namespaces` | Create namespace |
 | GET | `/api/export` | Download full data as JSON |
@@ -99,13 +110,16 @@ Data is stored at `./server/tabctl.db`
 ```
 tabctl/
 ├── README.md
-├── server/
-│   ├── server.ts          # Express REST API (TypeScript)
-│   ├── db.ts              # SQLite data layer (TypeScript)
-│   ├── dist/              # Compiled JS output
-│   ├── tabctl.db          # SQLite database
-│   ├── tsconfig.json
-│   └── package.json
+├── server-rs/               # Rust server (recommended)
+│   ├── src/
+│   │   ├── main.rs         # Entry point
+│   │   ├── handlers.rs     # HTTP handlers
+│   │   ├── db.rs           # SQLite data layer
+│   │   ├── schema.rs       # Type definitions
+│   │   ├── state.rs        # AppState
+│   │   ├── error.rs        # Error types
+│   │   └── backup.rs       # DB backup utilities
+│   └── Cargo.toml
 └── extension/
     ├── dist/              # Built extension (load this in Chrome)
     ├── public/            # Static assets (background.js, icons)
@@ -124,10 +138,11 @@ tabctl/
 ## Development
 
 ```bash
-# Server
-cd server
-npm run dev     # ts-node, hot reload
-npm run build  # compile TypeScript → dist/
+# Rust server
+cd server-rs
+cargo build --release        # Build
+cargo run --release          # Run
+cargo test                   # Run tests
 
 # Extension
 cd extension
@@ -142,12 +157,11 @@ npm run dev     # Vite dev server (for testing)
 ### Run in background
 
 ```bash
-cd server
-nohup node dist/server.js > /tmp/tabctl.log 2>&1 &
+nohup ~/.cargo/bin/tabctl-server > /tmp/tabctl.log 2>& &
 disown
 ```
 
-### Auto-start via LaunchAgent
+### Or via LaunchAgent
 
 Create `~/Library/LaunchAgents/com.tabctl.server.plist`:
 
@@ -157,9 +171,8 @@ Create `~/Library/LaunchAgents/com.tabctl.server.plist`:
 <plist version="1.0">
 <dict>
   <key>Label</key><string>com.tabctl.server</string>
-  <key>ProgramArguments</key>
-  <array><string>/usr/local/bin/node</string><string>/path/to/tabctl/server/dist/server.js</string></array>
-  <key>WorkingDirectory</key><string>/path/to/tabctl/server</string>
+  <key>ProgramArguments</key><array><string>/path/to/tabctl-server</string></array>
+  <key>WorkingDirectory</key><string>/path/to/tabctl</string>
   <key>RunAtLoad</key><true/>
 </dict>
 </plist>
