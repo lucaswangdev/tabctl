@@ -1,0 +1,15 @@
+[Unit]
+Description=tabctl-server - kubectl for browser tabs
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/root/.local/bin/tabctl-server
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+User=root
+
+[Install]
+WantedBy=default.target

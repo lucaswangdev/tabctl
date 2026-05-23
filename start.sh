@@ -19,15 +19,15 @@ cd "$ROOT/extension"
 npm install > /dev/null 2>&1
 npm run build > /dev/null 2>&1
 
-# Build server
-echo "⎈  Building server..."
-cd "$ROOT/server"
-npm install > /dev/null 2>&1
-npm run build > /dev/null 2>&1
+# Build Rust server
+echo "⎈  Building Rust server..."
+cd "$ROOT/server-rs"
+cargo build --release 2>&1 | tail -5
 
 # Start server
+SERVER="$ROOT/server-rs/target/release/tabctl-server"
 echo "⎈  Starting server on port $PORT..."
-nohup node dist/server.js > /tmp/tabctl.log 2>&1 &
+nohup $SERVER > /tmp/tabctl.log 2>&1 &
 disown
 
 sleep 1
