@@ -21,6 +21,22 @@ tabctl-server (localhost:7420, Rust + Axum)
 - **Rust** (latest stable) — install via [rustup](https://rustup.rs/)
 - **Chrome** browser (for extension)
 
+#### ⚠️ Cargo 镜像加速（如遇卡顿）
+
+如果 `cargo build` 卡在 `Updating tuna index`，说明清华 tuna 镜像连接慢。解决方法：
+
+```bash
+mv ~/.cargo/config ~/.cargo/config.bak
+cargo build --release -p tabctl-server
+```
+
+构建完成后如需恢复镜像：
+```bash
+mv ~/.cargo/config.bak ~/.cargo/config
+```
+
+---
+
 ### 1. Start the local server
 
 ```bash
@@ -36,10 +52,10 @@ cargo build --release -p tabctl-server
 
 # Or from server-rs/ directory:
 cd server-rs && cargo run --release
-```
 
-Server runs at `http://localhost:7420`
-Data is stored at `~/.tabctl/tabctl.db` (override with `TABCTL_DB` env var)
+# Server runs at http://localhost:7420
+# Data stored at ~/.tabctl/tabctl.db (override with TABCTL_DB env var)
+```
 
 ### 2. Load the Chrome Extension
 
@@ -159,32 +175,82 @@ npm run dev     # Vite dev server (for testing)
 
 ## Auto-start server on Mac login (optional)
 
-### Run in background
+### Run in background (手动后台运行)
 
 ```bash
-nohup ~/.cargo/bin/tabctl-server > /tmp/tabctl.log 2>& &
+nohup /full/path/to/tabctl/server-rs/target/release/tabctl-server > /tmp/tabctl.log 2>&1 &
 disown
 ```
 
-### Or via LaunchAgent
+或用相对路径（从项目根目录）：
 
-Create `~/Library/LaunchAgents/com.tabctl.server.plist`:
+```bash
+nohup ./server-rs/target/release/tabctl-server > /tmp/tabctl.log 2>&1 &
+disown
+```
+
+### Via LaunchAgent (开机自启动)
+
+创建 `~/Library/LaunchAgents/com.tabctl.server.plist`（注意：修改下面的路径为你的实际路径）：
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"...">
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>Label</key><string>com.tabctl.server</string>
-  <key>ProgramArguments</key><array><string>/path/to/tabctl-server</string></array>
-  <key>WorkingDirectory</key><string>/path/to/tabctl</string>
-  <key>RunAtLoad</key><true/>
+  <key>Label</key>
+  <string>com.tabctl.server</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/lucaswang/Data/github/tabctl/server-rs/target/release/tabctl-server</string>
+    <!-- ↑ 改为你的 tabctl-server 实际路径 -->
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/lucaswang/Data/github/tabctl</string>
+  <!-- ↑ 改为你的 tabctl 项目根目录 -->
+  <key>StandardOutPath</key>
+  <string>/tmp/tabctl.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/tabctl.log</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
 </dict>
 </plist>
 ```
 
-Then load it:
+路径修改说明：
+
+| 配置项 | 示例路径 | 说明 |
+|--------|----------|------|
+| `ProgramArguments` | `/Users/lucaswang/Data/github/tabctl/server-rs/target/release/tabctl-server` | 编译后的可执行文件完整路径 |
+| `WorkingDirectory` | `/Users/lucaswang/Data/github/tabctl` | 项目根目录（`start.sh` 所在目录） |
+
+获取实际路径的方法：
+
+```bash
+# tabctl-server 路径
+ls ~/Data/github/tabctl/server-rs/target/release/tabctl-server
+
+# 项目根目录
+pwd  # 在 tabctl 项目内执行
+```
+
+然后加载（已为你配置好）：
 
 ```bash
 launchctl load ~/Library/LaunchAgents/com.tabctl.server.plist
+```
+
+验证是否运行：
+
+```bash
+launchctl list | grep tabctl
+```
+
+停止服务：
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.tabctl.server.plist
 ```
