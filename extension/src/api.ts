@@ -75,6 +75,9 @@ export const getNamespaces = () =>
 export const createNamespace = (name: string, color?: string) =>
   req("POST", "/api/namespaces", { name, color }) as Promise<Namespace>;
 
+export const deleteNamespace = (id: string) =>
+  req("DELETE", `/api/namespaces/${id}`) as Promise<{ deleted: boolean; id: string }>;
+
 // ── Import / Export ────────────────────────────────────────────────────────────
 export const exportData = async () => {
   const res = await fetch(`${BASE}/api/export`);

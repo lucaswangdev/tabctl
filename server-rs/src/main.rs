@@ -67,10 +67,8 @@ async fn main() -> anyhow::Result<()> {
             "/api/deployments/{id}/pods",
             axum::routing::get(handlers::get_deployment_pods),
         )
-        .route(
-            "/api/namespaces",
-            axum::routing::get(handlers::list_namespaces).post(handlers::create_namespace),
-        )
+        .route("/api/namespaces", axum::routing::get(handlers::list_namespaces).post(handlers::create_namespace))
+        .route("/api/namespaces/{id}", axum::routing::delete(handlers::delete_namespace))
         .route("/api/export", axum::routing::get(handlers::export_data))
         .route("/api/import", axum::routing::post(handlers::import_data))
         .route(

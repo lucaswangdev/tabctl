@@ -235,6 +235,22 @@ impl Database {
         Ok(())
     }
 
+    pub fn namespace_exists(&self, id: &str) -> SqliteResult<bool> {
+        let conn = self.conn.lock().unwrap();
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM namespaces WHERE id = ?1",
+            params![id],
+            |r| r.get(0),
+        )?;
+        Ok(count > 0)
+    }
+
+    pub fn delete_namespace(&self, id: &str) -> SqliteResult<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM namespaces WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
     // ── Stats ───────────────────────────────────────────────────────────────
 
     pub fn get_stats(&self) -> SqliteResult<DbStats> {

@@ -176,11 +176,12 @@ export default function App() {
   };
 
   const expandAllGroups = () => {
-    setExpandedGroups(new Set(NAMESPACES.map(n => n.id)));
-  };
-
-  const collapseAllGroups = () => {
-    setExpandedGroups(new Set());
+    const allExpanded = expandedGroups.size === NAMESPACES.length;
+    if (allExpanded) {
+      setExpandedGroups(new Set());
+    } else {
+      setExpandedGroups(new Set(NAMESPACES.map(n => n.id)));
+    }
   };
 
   const handleDeletePod = async (pod: Pod) => {
@@ -192,9 +193,9 @@ export default function App() {
   };
 
   const handleDeleteGroup = async (nsId: string) => {
-    const groupPods = podsByNs(nsId);
     try {
-      await Promise.all(groupPods.map(p => api.deletePod(p.id)));
+      await Promise.all(podsByNs(nsId).map(p => api.deletePod(p.id)));
+      await api.deleteNamespace(nsId);
       await loadPods();
       showToast(`Deleted group ${nsId}`);
     } catch (e) { showToast((e as Error).message, "error"); }
@@ -280,7 +281,7 @@ export default function App() {
         input, button, select { font-family: inherit; font-size: inherit; outline: none; }
         .row { transition: background 0.1s; cursor: pointer; }
         .row:hover { background: #0d1623 !important; }
-        .btn { transition: all 0.12s; border: none; cursor: pointer; }
+        .btn { transition: all 0.12s; border: none; cursor: pointer; font-size: unset; }
         .btn:hover { opacity: 0.8; }
         .chevron { transition: transform 0.15s; display: inline-block; }
       `}</style>
@@ -339,10 +340,7 @@ export default function App() {
               style={{ padding: "3px 8px", background: "#0a1018", border: "1px solid #0e1f35", borderRadius: 4, color: "#a78bfa", fontSize: 11, width: 120 }}
             />
             <button className="btn" onClick={expandAllGroups} style={{ padding: "4px 10px", background: "#0e1f35", border: "1px solid #1e3a5f", borderRadius: 4, color: "#a78bfa", fontSize: 11 }}>
-              ⊞ expand all
-            </button>
-            <button className="btn" onClick={collapseAllGroups} style={{ padding: "4px 10px", background: "#0e1f35", border: "1px solid #1e3a5f", borderRadius: 4, color: "#a78bfa", fontSize: 11 }}>
-              ⊟ collapse all
+              {expandedGroups.size === NAMESPACES.length ? "⊟ collapse all" : "⊞ expand all"}
             </button>
             <button className="btn" onClick={() => setImportBookmarksOpen(true)} style={{ padding: "4px 10px", background: "#0e1f35", border: "1px solid #1e3a5f", borderRadius: 4, color: "#a8c0d6", fontSize: 11 }}>
               + import chrome bookmarks
@@ -368,8 +366,8 @@ export default function App() {
                 <div style={{ color: "#e2e8f0", fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tab.title || getDomain(tab.url)}</div>
                 <div style={{ color: "#1e4a7a", fontSize: 10 }}>{getDomain(tab.url)}</div>
               </div>
-              <button className="btn" onClick={e => { e.stopPropagation(); openTab(tab.url); }} style={{ background: "transparent", color: "#1e4a7a", padding: "3px 6px", border: "none", fontSize: 14, flexShrink: 0 }} title="Open">↗</button>
-              <button className="btn" onClick={e => { e.stopPropagation(); setAddToGroupUrl(tab.url); setAddToGroupName(tab.title || getDomain(tab.url)); setAddToGroupOpen(true); }} style={{ background: "transparent", color: "#1e4a7a", padding: "3px 6px", border: "none", fontSize: 13, flexShrink: 0 }} title="Add to favorites">☆</button>
+              <button className="btn" onClick={e => { e.stopPropagation(); openTab(tab.url); }} style={{ background: "transparent", color: "#1e4a7a", padding: "3px 6px", border: "none", fontSize: 20, flexShrink: 0 }} title="Open">↗</button>
+              <button className="btn" onClick={e => { e.stopPropagation(); setAddToGroupUrl(tab.url); setAddToGroupName(tab.title || getDomain(tab.url)); setAddToGroupOpen(true); }} style={{ background: "transparent", color: "#1e4a7a", padding: "3px 6px", border: "none", fontSize: 20, flexShrink: 0 }} title="Add to favorites">☆</button>
             </div>
           ))}
         </div>
@@ -394,10 +392,12 @@ export default function App() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ color: "#a8c0d6", fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{pod.name}</div>
                     <div style={{ color: "#1e4a7a", fontSize: 10, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{getDomain(pod.url)}</div>
-                    <div style={{ color: "#334155", fontSize: 10, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{pod.url}</div>
+                    <div style={{ color: "#334155", fontSize: 10, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <a href={pod.url} target="_blank" rel="noopener noreferrer" style={{ color: "#334155", textDecoration: "none" }} onClick={e => e.stopPropagation()}>{pod.url}</a>
+                    </div>
                   </div>
-                  <button className="btn" onClick={e => { e.stopPropagation(); openTab(pod.url); }} style={{ background: "transparent", color: "#1e4a7a", padding: "3px 6px", border: "none", fontSize: 14 }} title="Open">↗</button>
-                  <button className="btn" onClick={e => { e.stopPropagation(); handleDeletePod(pod); }} style={{ background: "transparent", color: "#1e4a7a", padding: "3px 6px", border: "none", fontSize: 12 }} title="Delete">✕</button>
+                  <button className="btn" onClick={e => { e.stopPropagation(); openTab(pod.url); }} style={{ background: "transparent", color: "#1e4a7a", padding: "3px 6px", border: "none", fontSize: 20 }} title="Open">↗</button>
+                  <button className="btn" onClick={e => { e.stopPropagation(); handleDeletePod(pod); }} style={{ background: "transparent", color: "#1e4a7a", padding: "3px 6px", border: "none", fontSize: 20 }} title="Delete">✕</button>
                 </div>
               ))}
             </div>
@@ -414,13 +414,13 @@ export default function App() {
                   display: "flex", alignItems: "center", gap: 8, padding: "7px 16px",
                   borderBottom: "1px solid #080c12", cursor: "pointer",
                 }}>
-                  <span className="chevron" style={{ color: "#1e4a7a", fontSize: 10, transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
+                  <span className="chevron" style={{ color: "#1e4a7a", fontSize: 20, transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
                   <span style={{ color: ns.color, fontWeight: 600, fontSize: 11 }}>{ns.label}</span>
                   <span style={{ background: ns.color + "22", color: ns.color, padding: "0 5px", borderRadius: 3, fontSize: 10 }}>{groupPods.length}</span>
                   <div style={{ flex: 1 }} />
-                  <button className="btn" onClick={e => { e.stopPropagation(); openGroup(ns.id); }} style={{ background: "#0e2a4a", border: "1px solid #1e4a7a", borderRadius: 4, color: "#60a5fa", fontSize: 12, fontWeight: 600, padding: "3px 10px" }}>▶</button>
-                  <button className="btn" onClick={e => { e.stopPropagation(); closeAllGroupTabs(); }} style={{ background: "#1a0808", border: "1px solid #3a0e0e", borderRadius: 4, color: "#ef4444", fontSize: 12, padding: "3px 10px" }}>✕</button>
-                  <button className="btn" onClick={e => { e.stopPropagation(); handleDeleteGroup(ns.id); }} style={{ background: "transparent", border: "1px solid #3a0e0e", borderRadius: 4, color: "#ef4444", fontSize: 11, padding: "3px 8px" }} title={`Delete ${ns.label} group`}>🗑</button>
+                  <button className="btn" onClick={e => { e.stopPropagation(); openGroup(ns.id); }} style={{ background: "#0e2a4a", border: "1px solid #1e4a7a", borderRadius: 4, color: "#60a5fa", fontSize: 20, fontWeight: 600, padding: "3px 10px" }}>▶</button>
+                  <button className="btn" onClick={e => { e.stopPropagation(); closeAllGroupTabs(); }} style={{ background: "#1a0808", border: "1px solid #3a0e0e", borderRadius: 4, color: "#ef4444", fontSize: 20, padding: "3px 10px" }}>✕</button>
+                  <button className="btn" onClick={e => { e.stopPropagation(); handleDeleteGroup(ns.id); }} style={{ background: "transparent", border: "1px solid #3a0e0e", borderRadius: 4, color: "#ef4444", fontSize: 20, padding: "3px 8px" }} title={`Delete ${ns.label} group`}>🗑</button>
                 </div>
                 {isExpanded && groupPods.map(pod => (
                   <div key={pod.id} className="row" onClick={() => openTab(pod.url)}
@@ -428,10 +428,12 @@ export default function App() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ color: "#a8c0d6", fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{pod.name}</div>
                       <div style={{ color: "#1e4a7a", fontSize: 10, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{getDomain(pod.url)}</div>
-                      <div style={{ color: "#334155", fontSize: 10, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{pod.url}</div>
+                      <div style={{ color: "#334155", fontSize: 10, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        <a href={pod.url} target="_blank" rel="noopener noreferrer" style={{ color: "#334155", textDecoration: "none" }} onClick={e => e.stopPropagation()}>{pod.url}</a>
+                      </div>
                     </div>
-                    <button className="btn" onClick={e => { e.stopPropagation(); openTab(pod.url); }} style={{ background: "transparent", color: "#1e4a7a", padding: "3px 6px", border: "none", fontSize: 14 }} title="Open">↗</button>
-                    <button className="btn" onClick={e => { e.stopPropagation(); handleDeletePod(pod); }} style={{ background: "transparent", color: "#1e4a7a", padding: "3px 6px", border: "none", fontSize: 12 }} title="Delete">✕</button>
+                    <button className="btn" onClick={e => { e.stopPropagation(); openTab(pod.url); }} style={{ background: "transparent", color: "#1e4a7a", padding: "3px 6px", border: "none", fontSize: 20 }} title="Open">↗</button>
+                    <button className="btn" onClick={e => { e.stopPropagation(); handleDeletePod(pod); }} style={{ background: "transparent", color: "#1e4a7a", padding: "3px 6px", border: "none", fontSize: 20 }} title="Delete">✕</button>
                   </div>
                 ))}
               </div>

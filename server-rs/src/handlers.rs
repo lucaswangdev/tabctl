@@ -293,6 +293,14 @@ pub async fn create_namespace(
         )));
     }
 
+    // Check for duplicate (case-insensitive)
+    if state.db.namespace_exists(&id)? {
+        return Err(AppError::Conflict(format!(
+            "Group \"{}\" already exists",
+            req.name
+        )));
+    }
+
     let ns = Namespace {
         id: id.clone(),
         label: req.name,
@@ -303,6 +311,18 @@ pub async fn create_namespace(
     state.db.create_namespace(&ns)?;
     tracing::info!("📁 Created namespace: {}", ns.label);
     Ok((StatusCode::CREATED, Json(ns)))
+}
+
+pub async fn delete_namespace(
+    State(state): State<Arc<AppState>>,
+    Path(ns_id): Path<String>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    if BUILT_IN_NAMESPACES.contains(&ns_id.as_str()) {
+        return Err(AppError::Conflict("Cannot delete built-in namespace".to_string()));
+    }
+    state.db.delete_namespace(&ns_id)?;
+    tracing::info!("🗑 Deleted namespace: {}", ns_id);
+    Ok(Json(serde_json::json!({ "deleted": true, "id": ns_id })))
 }
 
 // ── Import/Export ──────────────────────────────────────────────────────────────
@@ -447,6 +467,14 @@ pub async fn import_bookmarks(
             .chars()
             .filter(|c| c.is_alphanumeric())
             .collect::<String>();
+
+        // Use the folder's namespace, or default_ns if folder is empty/none
+        let pod_namespace = if ns_id.is_empty() {
+            req.default_ns.clone()
+        } else {
+            ns_id
+        };
+
         let pod = Pod {
             id: format!(
                 "pod-{}{}",
@@ -455,11 +483,7 @@ pub async fn import_bookmarks(
             ),
             name: entry.name,
             url: normalize_url(&entry.url),
-            namespace: if BUILT_IN_NAMESPACES.contains(&ns_id.as_str()) {
-                ns_id
-            } else {
-                req.default_ns.clone()
-            },
+            namespace: pod_namespace,
             labels: serde_json::Value::Object(Default::default()),
             status: Some("Saved".to_string()),
             created_at: Some(chrono::Utc::now().to_rfc3339()),
@@ -518,11 +542,13 @@ fn parse_chrome_bookmarks(html: &str) -> Vec<BookmarkEntry> {
     for line in html.lines() {
         let line = line.trim();
 
-        // Detect folder (H3 tag)
-        if line.starts_with("<H3") {
-            if let Some(start) = line.find('>').map(|i| i + 1) {
-                if let Some(end) = line.find("</H3>") {
-                    let folder_name = &line[start..end];
+        // Detect folder (H3 tag) - Chrome format may have <DT> prefix
+        if line.contains("<H3") {
+            if let Some(start) = line.find("<H3").map(|i| {
+                line[i..].find('>').map(|j| i + j + 1)
+            }).flatten() {
+                if let Some(end) = line[start..].find("</H3>") {
+                    let folder_name = &line[start..start + end];
                     let depth = folder_stack.len();
                     folder_stack.truncate(depth.saturating_sub(1));
                     folder_stack.push((folder_name.to_string(), depth));
@@ -530,17 +556,20 @@ fn parse_chrome_bookmarks(html: &str) -> Vec<BookmarkEntry> {
             }
         }
 
-        // Detect link (A tag)
-        if line.starts_with("<A HREF=") {
+        // Detect link (A tag) - Chrome format may have <DT> prefix
+        if line.contains("<A HREF=") {
             if let Some(url_start) = line.find("HREF=\"") {
                 let url_start = url_start + 6;
-                if let Some(url_end) = line[url_start..].find('"') {
-                    current_url = line[url_start..url_start + url_end].to_string();
-                }
-            }
-            if let Some(name_start) = line.find('>').map(|i| i + 1) {
-                if let Some(name_end) = line[name_start..].find("</A>") {
-                    current_name = line[name_start..name_start + name_end].to_string();
+                if let Some(url_end_quote) = line[url_start..].find('"') {
+                    current_url = line[url_start..url_start + url_end_quote].to_string();
+                    // Now find the > that closes the <A ...> tag (after the HREF value)
+                    let after_href = url_start + url_end_quote + 1;
+                    if let Some(gt_pos) = line[after_href..].find('>') {
+                        let name_start = after_href + gt_pos + 1;
+                        if let Some(name_end) = line[name_start..].find("</A>") {
+                            current_name = line[name_start..name_start + name_end].to_string();
+                        }
+                    }
                 }
             }
 
