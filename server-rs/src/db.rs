@@ -9,12 +9,11 @@
 use crate::backup::backup_existing_db;
 use crate::schema::{DbStats, Deployment, Namespace, Pod};
 use rusqlite::{params, Connection, Result as SqliteResult};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Mutex;
 
 pub struct Database {
     conn: Mutex<Connection>,
-    path: PathBuf,
 }
 
 impl Database {
@@ -47,7 +46,6 @@ impl Database {
 
         let db = Self {
             conn: Mutex::new(conn),
-            path,
         };
         db.init_schema()?;
         Ok(db)
@@ -162,25 +160,8 @@ impl Database {
 
     pub fn delete_pod(&self, id: &str) -> SqliteResult<()> {
         let conn = self.conn.lock().unwrap();
-        conn.execute("DELETE FROM pods WHERE id = ?", params![id])?;
+        conn.execute("DELETE FROM pods WHERE ?", params![id])?;
         Ok(())
-    }
-
-    pub fn upsert_pod(&self, pod: &Pod) -> SqliteResult<(String, bool)> {
-        let conn = self.conn.lock().unwrap();
-        let existing: Option<String> = conn
-            .query_row(
-                "SELECT id FROM pods WHERE url = ? AND namespace = ?",
-                params![pod.url, pod.namespace],
-                |row| row.get(0),
-            )
-            .ok();
-        if let Some(id) = existing {
-            return Ok((id, true)); // skipped
-        }
-        drop(conn);
-        self.create_pod(pod)?;
-        Ok((pod.id.clone(), false))
     }
 
     // ── Deployments ──────────────────────────────────────────────────────────
@@ -229,17 +210,6 @@ impl Database {
         let mut rows = stmt.query(params![id])?;
         if let Some(row) = rows.next()? {
             Ok(Some(Deployment::from_row(row)))
-        } else {
-            Ok(None)
-        }
-    }
-
-    pub fn get_deployment_selector(&self, id: &str) -> SqliteResult<Option<String>> {
-        let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT selector FROM deployments WHERE id = ?")?;
-        let mut rows = stmt.query(params![id])?;
-        if let Some(row) = rows.next()? {
-            Ok(Some(row.get(0)?))
         } else {
             Ok(None)
         }
@@ -327,9 +297,5 @@ impl Database {
         let conn = self.conn.lock().unwrap();
         conn.execute_batch("DELETE FROM pods; DELETE FROM deployments; DELETE FROM namespaces;")?;
         Ok(())
-    }
-
-    pub fn path(&self) -> &Path {
-        &self.path
     }
 }

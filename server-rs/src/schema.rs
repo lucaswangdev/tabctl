@@ -168,6 +168,7 @@ fn default_mode() -> String {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct ImportData {
     pub pods: Option<Vec<serde_json::Value>>,
     pub deployments: Option<Vec<serde_json::Value>>,

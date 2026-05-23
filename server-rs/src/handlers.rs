@@ -41,7 +41,6 @@ pub async fn list_pods(
 #[derive(Debug, Deserialize)]
 pub struct ListPodsQuery {
     pub namespace: Option<String>,
-    pub label: Option<String>,
 }
 
 pub async fn get_pod(
