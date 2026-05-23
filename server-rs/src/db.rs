@@ -21,6 +21,14 @@ impl Database {
     pub fn new(path: impl Into<PathBuf>) -> SqliteResult<Self> {
         let path = path.into();
 
+        // Ensure parent directory exists
+        if let Some(parent) = path.parent() {
+            if !parent.exists() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| rusqlite::Error::InvalidPath(e.to_string().into()))?;
+            }
+        }
+
         // Backup existing database if present
         if path.exists() {
             if let Err(e) = backup_existing_db(&path) {

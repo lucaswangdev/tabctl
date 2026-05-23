@@ -16,9 +16,9 @@ impl AppState {
         let db_path = std::env::var("TABCTL_DB")
             .map(PathBuf::from)
             .unwrap_or_else(|_| {
-                dirs::data_local_dir()
+                dirs::home_dir()
                     .unwrap_or_else(|| PathBuf::from("."))
-                    .join("tabctl.db")
+                    .join(".tabctl/tabctl.db")
             });
 
         let db = Arc::new(Database::new(&db_path)?);
