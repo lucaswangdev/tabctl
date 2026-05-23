@@ -11,10 +11,15 @@ Chrome Extension (Manifest V3, React + TypeScript)
 tabctl-server (localhost:7420, Rust + Axum)
         │  SQLite
         ▼
-tabctl.db   ← single source of truth
+~/.tabctl/tabctl.db   ← single source of truth
 ```
 
 ## Quick Start
+
+### Prerequisites
+
+- **Rust** (latest stable) — install via [rustup](https://rustup.rs/)
+- **Chrome** browser (for extension)
 
 ### 1. Start the local server
 
@@ -34,7 +39,7 @@ cd server-rs && cargo run --release
 ```
 
 Server runs at `http://localhost:7420`
-Data is stored at `~/.local/share/tabctl.db`
+Data is stored at `~/.tabctl/tabctl.db` (override with `TABCTL_DB` env var)
 
 ### 2. Load the Chrome Extension
 
